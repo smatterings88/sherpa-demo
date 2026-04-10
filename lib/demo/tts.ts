@@ -66,6 +66,40 @@ function roleToVoiceAndSettings(role: ScriptLineRole): {
   }
 }
 
+function formatElevenLabsApiError(status: number, bodyText: string): string {
+  const trimmed = bodyText.slice(0, 800);
+  try {
+    const parsed = JSON.parse(bodyText) as {
+      detail?: { message?: string; code?: string };
+    };
+    const d = parsed.detail;
+    if (d && typeof d.message === "string") {
+      if (
+        status === 401 &&
+        (d.code === "sign_in_required" ||
+          /sign in/i.test(d.message))
+      ) {
+        return (
+          "ElevenLabs rejected this API key (sign_in_required). " +
+          "Sign in at elevenlabs.io, finish any account prompts, then Profile → API key → create a new key. " +
+          "Set it as ELEVENLABS_API_KEY on Vercel (no spaces or quotes). " +
+          "Free/creator tiers still need an active logged-in account."
+        );
+      }
+      if (status === 401) {
+        return (
+          `ElevenLabs: ${d.message} ` +
+          "(Check ELEVENLABS_API_KEY matches a current key from Profile → API key.)"
+        );
+      }
+      return `ElevenLabs: ${d.message}`;
+    }
+  } catch {
+    /* fall through */
+  }
+  return `ElevenLabs error ${status}: ${trimmed || "unknown"}`;
+}
+
 async function fetchElevenLabsTts(
   apiKey: string,
   voiceId: string,
@@ -109,22 +143,25 @@ export async function synthesizeLineToMp3(
   ];
 
   let lastDetail = "";
+  let lastStatus = 400;
 
   for (const fmt of formatAttempts) {
     const res = await fetchElevenLabsTts(apiKey, voiceId, fmt, payload);
     if (res.ok) {
       return res.arrayBuffer();
     }
-    lastDetail = (await res.text().catch(() => "")).slice(0, 400);
+    lastStatus = res.status;
+    lastDetail = (await res.text().catch(() => "")).slice(0, 800);
     const retryable = res.status === 400 || res.status === 422;
     if (!retryable) {
-      throw new Error(
-        `ElevenLabs error ${res.status}: ${lastDetail || res.statusText}`,
-      );
+      throw new Error(formatElevenLabsApiError(res.status, lastDetail));
     }
   }
 
   throw new Error(
-    `ElevenLabs error (all output formats failed): ${lastDetail || "unknown"}`,
+    formatElevenLabsApiError(
+      lastStatus,
+      lastDetail || "all output format attempts failed",
+    ),
   );
 }

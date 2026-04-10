@@ -1,6 +1,10 @@
 import { randomUUID } from "crypto";
+import { gzipSync } from "node:zlib";
 import { bufferToBase64 } from "@/lib/demo/audio";
-import { MAX_JSON_RESPONSE_BYTES } from "@/lib/demo/constants";
+import {
+  MAX_GZIP_RESPONSE_BYTES,
+  MAX_JSON_UNCOMPRESSED_BYTES,
+} from "@/lib/demo/constants";
 import { pickRandomPain, pickRandomScenario } from "@/lib/demo/scenarios";
 import { generateScriptLines } from "@/lib/demo/script-generator";
 import { synthesizeLineToMp3 } from "@/lib/demo/tts";
@@ -13,6 +17,8 @@ import type {
 import { validateDemoBody } from "@/lib/demo/validation";
 
 export const maxDuration = 60;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function jsonError(
   status: number,
@@ -23,6 +29,37 @@ function jsonError(
 
 function blobStorageConfigured(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+}
+
+/** Gzip shrinks base64-heavy JSON so it stays under Vercel response limits. */
+function gzipSuccessResponse(payload: GenerateDemoSuccessResponse): Response {
+  const raw = JSON.stringify(payload);
+  const utf8 = Buffer.from(raw, "utf8");
+  if (utf8.length > MAX_JSON_UNCOMPRESSED_BYTES) {
+    return jsonError(502, {
+      success: false,
+      error:
+        "Demo payload is too large. Add BLOB_READ_WRITE_TOKEN (Vercel Blob) and redeploy, or shorten the generated script.",
+      code: "UNKNOWN",
+    });
+  }
+  const gz = gzipSync(utf8, { level: 6 });
+  if (gz.length > MAX_GZIP_RESPONSE_BYTES) {
+    return jsonError(502, {
+      success: false,
+      error:
+        "Compressed response still exceeds platform limits. Add BLOB_READ_WRITE_TOKEN in your Vercel project (Storage → Blob) and redeploy so audio is returned as URLs.",
+      code: "UNKNOWN",
+    });
+  }
+  return new Response(gz, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Content-Encoding": "gzip",
+      "Cache-Control": "no-store",
+    },
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -145,33 +182,21 @@ async function handleGenerate(request: Request): Promise<Response> {
       success: true,
       scenario,
       pain,
-      lines: scriptResult.lines,
       audioMode: "segment_urls",
       segmentUrls,
       loss,
     };
-    return Response.json(payload);
+    return gzipSuccessResponse(payload);
   }
 
   const payload: GenerateDemoSuccessResponse = {
     success: true,
     scenario,
     pain,
-    lines: scriptResult.lines,
     audioMode: "segments",
     segments,
     loss,
   };
 
-  const raw = JSON.stringify(payload);
-  if (Buffer.byteLength(raw, "utf8") > MAX_JSON_RESPONSE_BYTES) {
-    return jsonError(502, {
-      success: false,
-      error:
-        "Generated audio is too large to return in one response. Add BLOB_READ_WRITE_TOKEN in your Vercel project environment (Storage → Blob) and redeploy.",
-      code: "UNKNOWN",
-    });
-  }
-
-  return Response.json(payload);
+  return gzipSuccessResponse(payload);
 }

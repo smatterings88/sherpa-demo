@@ -29,17 +29,27 @@ export const DEFAULT_ELEVENLABS_VOICES = {
   alex: "ErXwobaYiN019PkySv",
 } as const;
 
-export const ELEVENLABS_MODEL_ID = "eleven_turbo_v2_5";
+/** Default model; override with ELEVENLABS_MODEL_ID (e.g. eleven_turbo_v2_5). */
+export const ELEVENLABS_MODEL_ID_DEFAULT = "eleven_multilingual_v2";
 
 /** Query param for ElevenLabs convert; smaller files avoid Vercel response limits. */
 export const ELEVENLABS_OUTPUT_FORMAT = "mp3_22050_32" as const;
+
+/** Fallback output formats if the primary is rejected for the account/model. */
+export const ELEVENLABS_OUTPUT_FORMAT_FALLBACKS = [
+  "mp3_44100_64",
+  "mp3_44100_32",
+] as const;
 
 /** Hard caps keep TTS count and JSON payload under serverless limits. */
 export const MAX_SCRIPT_LINES = 12;
 export const MAX_LINE_CHARS = 240;
 
-/** Stay under typical ~4.5MB Vercel function response limits (UTF-8 JSON). */
-export const MAX_JSON_RESPONSE_BYTES = 3_500_000;
+/** Reject uncompressed JSON larger than this before gzip (memory guard). */
+export const MAX_JSON_UNCOMPRESSED_BYTES = 12_000_000;
+
+/** Stay under ~4.5MB Vercel response limits (gzip wire size). */
+export const MAX_GZIP_RESPONSE_BYTES = 3_800_000;
 
 /** Pause between segment playback (ms); feels like breath between lines. */
 export const SEGMENT_GAP_MS = 220;

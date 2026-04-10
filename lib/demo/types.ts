@@ -43,7 +43,6 @@ export type GenerateDemoSuccessResponse =
       success: true;
       scenario: DemoScenario;
       pain: string;
-      lines: ScriptLine[];
       audioMode: "single";
       audioUrl: string;
       loss: DemoLoss;
@@ -52,7 +51,6 @@ export type GenerateDemoSuccessResponse =
       success: true;
       scenario: DemoScenario;
       pain: string;
-      lines: ScriptLine[];
       audioMode: "segments";
       segments: AudioSegment[];
       loss: DemoLoss;
@@ -61,7 +59,6 @@ export type GenerateDemoSuccessResponse =
       success: true;
       scenario: DemoScenario;
       pain: string;
-      lines: ScriptLine[];
       audioMode: "segment_urls";
       segmentUrls: RemoteAudioSegment[];
       loss: DemoLoss;

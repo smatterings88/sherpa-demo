@@ -1,13 +1,20 @@
 import {
   DEFAULT_ELEVENLABS_VOICES,
-  ELEVENLABS_MODEL_ID,
+  ELEVENLABS_MODEL_ID_DEFAULT,
   ELEVENLABS_OUTPUT_FORMAT,
+  ELEVENLABS_OUTPUT_FORMAT_FALLBACKS,
 } from "./constants";
 import type { ScriptLineRole } from "./types";
 
 interface VoiceSettings {
   stability: number;
   similarity_boost: number;
+}
+
+function resolveModelId(): string {
+  return (
+    process.env.ELEVENLABS_MODEL_ID?.trim() || ELEVENLABS_MODEL_ID_DEFAULT
+  );
 }
 
 function resolveVoiceIds(): {
@@ -59,36 +66,65 @@ function roleToVoiceAndSettings(role: ScriptLineRole): {
   }
 }
 
-export async function synthesizeLineToMp3(
+async function fetchElevenLabsTts(
   apiKey: string,
-  role: ScriptLineRole,
-  text: string,
-): Promise<ArrayBuffer> {
-  const { voiceId, settings } = roleToVoiceAndSettings(role);
+  voiceId: string,
+  outputFormat: string | null,
+  body: Record<string, unknown>,
+): Promise<Response> {
   const url = new URL(
     `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
   );
-  url.searchParams.set("output_format", ELEVENLABS_OUTPUT_FORMAT);
-  const res = await fetch(url.toString(), {
+  if (outputFormat) {
+    url.searchParams.set("output_format", outputFormat);
+  }
+  return fetch(url.toString(), {
     method: "POST",
     headers: {
       "xi-api-key": apiKey,
       "Content-Type": "application/json",
       Accept: "audio/mpeg",
     },
-    body: JSON.stringify({
-      text,
-      model_id: ELEVENLABS_MODEL_ID,
-      voice_settings: settings,
-    }),
+    body: JSON.stringify(body),
   });
+}
 
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    throw new Error(
-      `ElevenLabs error ${res.status}: ${errText.slice(0, 200) || res.statusText}`,
-    );
+export async function synthesizeLineToMp3(
+  apiKey: string,
+  role: ScriptLineRole,
+  text: string,
+): Promise<ArrayBuffer> {
+  const { voiceId, settings } = roleToVoiceAndSettings(role);
+  const model_id = resolveModelId();
+  const payload = {
+    text,
+    model_id,
+    voice_settings: settings,
+  };
+
+  const formatAttempts: (string | null)[] = [
+    ELEVENLABS_OUTPUT_FORMAT,
+    ...ELEVENLABS_OUTPUT_FORMAT_FALLBACKS,
+    null,
+  ];
+
+  let lastDetail = "";
+
+  for (const fmt of formatAttempts) {
+    const res = await fetchElevenLabsTts(apiKey, voiceId, fmt, payload);
+    if (res.ok) {
+      return res.arrayBuffer();
+    }
+    lastDetail = (await res.text().catch(() => "")).slice(0, 400);
+    const retryable = res.status === 400 || res.status === 422;
+    if (!retryable) {
+      throw new Error(
+        `ElevenLabs error ${res.status}: ${lastDetail || res.statusText}`,
+      );
+    }
   }
 
-  return res.arrayBuffer();
+  throw new Error(
+    `ElevenLabs error (all output formats failed): ${lastDetail || "unknown"}`,
+  );
 }

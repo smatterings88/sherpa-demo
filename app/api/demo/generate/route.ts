@@ -11,6 +11,7 @@ import type {
   GenerateDemoSuccessResponse,
   RemoteAudioSegment,
 } from "@/lib/demo/types";
+import { sanitizeElevenLabsApiKey } from "@/lib/demo/elevenlabs-config";
 import { validateDemoBody } from "@/lib/demo/validation";
 
 export const maxDuration = 60;
@@ -77,7 +78,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
 async function handleGenerate(request: Request): Promise<NextResponse> {
   const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  const elevenKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const elevenKey = sanitizeElevenLabsApiKey(
+    process.env.ELEVENLABS_API_KEY ?? "",
+  );
 
   if (!openaiKey) {
     return jsonError(503, {

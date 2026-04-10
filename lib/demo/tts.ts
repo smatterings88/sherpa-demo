@@ -1,6 +1,7 @@
 import {
   DEFAULT_ELEVENLABS_VOICES,
   ELEVENLABS_MODEL_ID,
+  ELEVENLABS_OUTPUT_FORMAT,
 } from "./constants";
 import type { ScriptLineRole } from "./types";
 
@@ -64,8 +65,11 @@ export async function synthesizeLineToMp3(
   text: string,
 ): Promise<ArrayBuffer> {
   const { voiceId, settings } = roleToVoiceAndSettings(role);
-  const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
-  const res = await fetch(url, {
+  const url = new URL(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+  );
+  url.searchParams.set("output_format", ELEVENLABS_OUTPUT_FORMAT);
+  const res = await fetch(url.toString(), {
     method: "POST",
     headers: {
       "xi-api-key": apiKey,

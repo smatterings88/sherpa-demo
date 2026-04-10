@@ -26,6 +26,12 @@ export interface AudioSegment {
   base64: string;
 }
 
+export interface RemoteAudioSegment {
+  role: ScriptLineRole;
+  mimeType: "audio/mpeg";
+  url: string;
+}
+
 export interface DemoLoss {
   commission: number;
   dealSize: number;
@@ -49,6 +55,15 @@ export type GenerateDemoSuccessResponse =
       lines: ScriptLine[];
       audioMode: "segments";
       segments: AudioSegment[];
+      loss: DemoLoss;
+    }
+  | {
+      success: true;
+      scenario: DemoScenario;
+      pain: string;
+      lines: ScriptLine[];
+      audioMode: "segment_urls";
+      segmentUrls: RemoteAudioSegment[];
       loss: DemoLoss;
     };
 

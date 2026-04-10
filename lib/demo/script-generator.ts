@@ -28,13 +28,13 @@ export async function generateScriptLines(
         {
           role: "system",
           content:
-            "You write realistic sales-call dialogue for audio demos. Output only valid JSON matching the user's schema. Never use markdown code fences.",
+            "You write realistic sales-call dialogue for audio demos. Output only valid JSON matching the user's schema. Never use markdown code fences. The lines array must have at most 12 objects; each text must be 240 characters or fewer.",
         },
         { role: "user", content: userPrompt },
       ],
       response_format: { type: "json_object" },
       temperature: 0.9,
-      max_tokens: 1200,
+      max_tokens: 900,
     });
     content = completion.choices[0]?.message?.content ?? "";
   } catch (e) {

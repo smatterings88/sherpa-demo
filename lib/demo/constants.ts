@@ -31,5 +31,15 @@ export const DEFAULT_ELEVENLABS_VOICES = {
 
 export const ELEVENLABS_MODEL_ID = "eleven_turbo_v2_5";
 
+/** Query param for ElevenLabs convert; smaller files avoid Vercel response limits. */
+export const ELEVENLABS_OUTPUT_FORMAT = "mp3_22050_32" as const;
+
+/** Hard caps keep TTS count and JSON payload under serverless limits. */
+export const MAX_SCRIPT_LINES = 12;
+export const MAX_LINE_CHARS = 240;
+
+/** Stay under typical ~4.5MB Vercel function response limits (UTF-8 JSON). */
+export const MAX_JSON_RESPONSE_BYTES = 3_500_000;
+
 /** Pause between segment playback (ms); feels like breath between lines. */
 export const SEGMENT_GAP_MS = 220;

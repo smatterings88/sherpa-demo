@@ -1,3 +1,4 @@
+import { MAX_LINE_CHARS, MAX_SCRIPT_LINES } from "./constants";
 import type { ScriptLine } from "./types";
 
 export function bufferToBase64(buffer: ArrayBuffer): string {
@@ -51,7 +52,20 @@ export function parseDemoScriptJson(
     if (typeof lr.text !== "string" || lr.text.trim() === "") {
       return { ok: false, error: `Invalid text at line ${i}.` };
     }
-    lines.push({ role: lr.role, text: lr.text.trim() });
+    const text = lr.text.trim();
+    if (text.length > MAX_LINE_CHARS) {
+      return {
+        ok: false,
+        error: `Line ${i} exceeds ${MAX_LINE_CHARS} characters.`,
+      };
+    }
+    lines.push({ role: lr.role, text });
+  }
+  if (lines.length > MAX_SCRIPT_LINES) {
+    return {
+      ok: false,
+      error: `Script has too many lines (max ${MAX_SCRIPT_LINES}).`,
+    };
   }
   if (lines.length < 3) {
     return { ok: false, error: "Script too short." };

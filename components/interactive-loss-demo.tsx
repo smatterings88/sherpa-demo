@@ -47,7 +47,9 @@ export function InteractiveLossDemo() {
   const playerAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const revokeUrls = useCallback(() => {
-    urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+    urlsRef.current.forEach((u) => {
+      if (u.startsWith("blob:")) URL.revokeObjectURL(u);
+    });
     urlsRef.current = [];
   }, []);
 
@@ -89,15 +91,38 @@ export function InteractiveLossDemo() {
     [revokeUrls],
   );
 
+  const startRemoteSegmentPlayback = useCallback(
+    (urls: string[]) => {
+      audioModeRef.current = "segments";
+      revokeUrls();
+      urlsRef.current = urls;
+      indexRef.current = 0;
+      const el = audioRef.current;
+      if (!el || urls.length === 0) return;
+      el.src = urls[0]!;
+      setIsPlaying(true);
+      void el.play().catch(() => setIsPlaying(false));
+    },
+    [revokeUrls],
+  );
+
   const startFromDemo = useCallback(
     (data: GenerateDemoSuccessResponse) => {
       if (data.audioMode === "single") {
         startSingleUrlPlayback(data.audioUrl);
         return;
       }
+      if (data.audioMode === "segment_urls") {
+        startRemoteSegmentPlayback(data.segmentUrls.map((s) => s.url));
+        return;
+      }
       startSegmentPlayback(data.segments);
     },
-    [startSegmentPlayback, startSingleUrlPlayback],
+    [
+      startRemoteSegmentPlayback,
+      startSegmentPlayback,
+      startSingleUrlPlayback,
+    ],
   );
 
   const handleAudioEnded = useCallback(() => {

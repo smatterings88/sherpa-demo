@@ -177,12 +177,26 @@ export function InteractiveLossDemo() {
         body: JSON.stringify({ dealSize, commission }),
       });
 
-      const data: GenerateDemoSuccessResponse | GenerateDemoErrorResponse =
-        await res.json();
+      const raw = await res.text();
+      let data: GenerateDemoSuccessResponse | GenerateDemoErrorResponse;
+      try {
+        data = JSON.parse(raw) as
+          | GenerateDemoSuccessResponse
+          | GenerateDemoErrorResponse;
+      } catch {
+        setError(GENERIC_ERROR);
+        return;
+      }
 
       if (!res.ok || !data.success) {
         const err = data as GenerateDemoErrorResponse;
-        if (err.code === "VALIDATION" && err.error) {
+        if (
+          err.error &&
+          (err.code === "VALIDATION" ||
+            err.code === "LLM" ||
+            err.code === "TTS" ||
+            err.code === "CONFIG")
+        ) {
           setError(err.error);
         } else {
           setError(GENERIC_ERROR);

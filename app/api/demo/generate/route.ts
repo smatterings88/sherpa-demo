@@ -1,10 +1,7 @@
 import { randomUUID } from "crypto";
-import { gzipSync } from "node:zlib";
+import { NextResponse } from "next/server";
 import { bufferToBase64 } from "@/lib/demo/audio";
-import {
-  MAX_GZIP_RESPONSE_BYTES,
-  MAX_JSON_UNCOMPRESSED_BYTES,
-} from "@/lib/demo/constants";
+import { MAX_JSON_RESPONSE_BYTES } from "@/lib/demo/constants";
 import { pickRandomPain, pickRandomScenario } from "@/lib/demo/scenarios";
 import { generateScriptLines } from "@/lib/demo/script-generator";
 import { synthesizeLineToMp3 } from "@/lib/demo/tts";
@@ -23,46 +20,49 @@ export const dynamic = "force-dynamic";
 function jsonError(
   status: number,
   body: GenerateDemoErrorResponse,
-): Response {
-  return Response.json(body, { status });
+): NextResponse {
+  return NextResponse.json(body, { status });
+}
+
+/** Vercel may expose either name when Blob is linked to the project. */
+function readBlobReadWriteToken(): string | undefined {
+  return (
+    process.env.BLOB_READ_WRITE_TOKEN?.trim() ||
+    process.env.VERCEL_BLOB_READ_WRITE_TOKEN?.trim()
+  );
 }
 
 function blobStorageConfigured(): boolean {
-  return Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  return Boolean(readBlobReadWriteToken());
 }
 
-/** Gzip shrinks base64-heavy JSON so it stays under Vercel response limits. */
-function gzipSuccessResponse(payload: GenerateDemoSuccessResponse): Response {
-  const raw = JSON.stringify(payload);
-  const utf8 = Buffer.from(raw, "utf8");
-  if (utf8.length > MAX_JSON_UNCOMPRESSED_BYTES) {
-    return jsonError(502, {
+/**
+ * Plain JSON only (no manual gzip). Vercel counts the serialized body against
+ * the ~4.5MB limit; gzip at the edge does not change that cap for Functions.
+ */
+function jsonSuccessResponse(
+  payload: GenerateDemoSuccessResponse,
+): NextResponse {
+  const body = JSON.stringify(payload);
+  const bytes = Buffer.byteLength(body, "utf8");
+  if (bytes > MAX_JSON_RESPONSE_BYTES) {
+    return jsonError(503, {
       success: false,
       error:
-        "Demo payload is too large. Add BLOB_READ_WRITE_TOKEN (Vercel Blob) and redeploy, or shorten the generated script.",
-      code: "UNKNOWN",
+        "Demo response is too large. In Vercel open Storage → Blob, create a store and connect it to this project (adds BLOB_READ_WRITE_TOKEN), then redeploy so audio is returned as URLs instead of embedded data.",
+      code: "CONFIG",
     });
   }
-  const gz = gzipSync(utf8, { level: 6 });
-  if (gz.length > MAX_GZIP_RESPONSE_BYTES) {
-    return jsonError(502, {
-      success: false,
-      error:
-        "Compressed response still exceeds platform limits. Add BLOB_READ_WRITE_TOKEN in your Vercel project (Storage → Blob) and redeploy so audio is returned as URLs.",
-      code: "UNKNOWN",
-    });
-  }
-  return new Response(gz, {
+  return new NextResponse(body, {
     status: 200,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Content-Encoding": "gzip",
       "Cache-Control": "no-store",
     },
   });
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: Request): Promise<NextResponse> {
   try {
     return await handleGenerate(request);
   } catch (e) {
@@ -75,7 +75,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 }
 
-async function handleGenerate(request: Request): Promise<Response> {
+async function handleGenerate(request: Request): Promise<NextResponse> {
   const openaiKey = process.env.OPENAI_API_KEY?.trim();
   const elevenKey = process.env.ELEVENLABS_API_KEY?.trim();
 
@@ -127,7 +127,7 @@ async function handleGenerate(request: Request): Promise<Response> {
   );
 
   if (!scriptResult.ok) {
-    return jsonError(502, {
+    return jsonError(422, {
       success: false,
       error: scriptResult.error,
       code: "LLM",
@@ -138,6 +138,7 @@ async function handleGenerate(request: Request): Promise<Response> {
   const loss = { commission, dealSize, annualLoss };
 
   const storeBlob = blobStorageConfigured();
+  const blobToken = readBlobReadWriteToken();
   const segments: AudioSegment[] = [];
   const segmentUrls: RemoteAudioSegment[] = [];
 
@@ -152,7 +153,7 @@ async function handleGenerate(request: Request): Promise<Response> {
         const uploaded = await put(pathname, Buffer.from(buf), {
           access: "public",
           contentType: "audio/mpeg",
-          token: process.env.BLOB_READ_WRITE_TOKEN,
+          ...(blobToken ? { token: blobToken } : {}),
         });
         segmentUrls.push({
           role: line.role,
@@ -170,7 +171,7 @@ async function handleGenerate(request: Request): Promise<Response> {
   } catch (e) {
     const msg =
       e instanceof Error ? e.message : "Text-to-speech request failed.";
-    return jsonError(502, {
+    return jsonError(422, {
       success: false,
       error: msg,
       code: "TTS",
@@ -186,7 +187,7 @@ async function handleGenerate(request: Request): Promise<Response> {
       segmentUrls,
       loss,
     };
-    return gzipSuccessResponse(payload);
+    return jsonSuccessResponse(payload);
   }
 
   const payload: GenerateDemoSuccessResponse = {
@@ -198,5 +199,5 @@ async function handleGenerate(request: Request): Promise<Response> {
     loss,
   };
 
-  return gzipSuccessResponse(payload);
+  return jsonSuccessResponse(payload);
 }

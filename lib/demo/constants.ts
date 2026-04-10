@@ -42,14 +42,11 @@ export const ELEVENLABS_OUTPUT_FORMAT_FALLBACKS = [
 ] as const;
 
 /** Hard caps keep TTS count and JSON payload under serverless limits. */
-export const MAX_SCRIPT_LINES = 12;
-export const MAX_LINE_CHARS = 240;
+export const MAX_SCRIPT_LINES = 10;
+export const MAX_LINE_CHARS = 200;
 
-/** Reject uncompressed JSON larger than this before gzip (memory guard). */
-export const MAX_JSON_UNCOMPRESSED_BYTES = 12_000_000;
-
-/** Stay under ~4.5MB Vercel response limits (gzip wire size). */
-export const MAX_GZIP_RESPONSE_BYTES = 3_800_000;
+/** Vercel function response body limit is ~4.5MB; stay safely under for base64 JSON. */
+export const MAX_JSON_RESPONSE_BYTES = 3_800_000;
 
 /** Pause between segment playback (ms); feels like breath between lines. */
 export const SEGMENT_GAP_MS = 220;

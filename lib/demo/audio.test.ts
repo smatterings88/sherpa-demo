@@ -26,7 +26,7 @@ describe("parseDemoScriptJson", () => {
   });
 
   it("rejects too many lines", () => {
-    const lines = Array.from({ length: 13 }, (_, i) => ({
+    const lines = Array.from({ length: 11 }, (_, i) => ({
       role: "narrator" as const,
       text: `Line ${i}`,
     }));

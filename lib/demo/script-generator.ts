@@ -28,7 +28,7 @@ export async function generateScriptLines(
         {
           role: "system",
           content:
-            "You write realistic sales-call dialogue for audio demos. Output only valid JSON matching the user's schema. Never use markdown code fences. The lines array must have at most 12 objects; each text must be 240 characters or fewer.",
+            "You write realistic sales-call dialogue for audio demos. Output only valid JSON matching the user's schema. Never use markdown code fences. The lines array must have at most 10 objects; each text must be 200 characters or fewer.",
         },
         { role: "user", content: userPrompt },
       ],

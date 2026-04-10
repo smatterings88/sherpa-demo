@@ -6,12 +6,12 @@ Return ONLY valid JSON (no markdown, no commentary) with exactly this shape:
 {
   "scenario": "PRICE_OBJECTION" | "SEND_ME_INFO" | "COMPETITOR_OBJECTION",
   "lines": [
-    { "role": "narrator", "text": "string (max 240 chars)" },
-    { "role": "prospect" | "rep_bad" | "alex" | "rep_good" | "narrator", "text": "string (max 240 chars)" }
+    { "role": "narrator", "text": "string (max 200 chars)" },
+    { "role": "prospect" | "rep_bad" | "alex" | "rep_good" | "narrator", "text": "string (max 200 chars)" }
   ]
 }
 
-At most 12 objects in "lines". Allowed roles: narrator, prospect, rep_bad, alex, rep_good.
+At most 10 objects in "lines". Allowed roles: narrator, prospect, rep_bad, alex, rep_good.
 The "scenario" field must match the scenario you were given.
 
 Style rules (enforce strictly):
@@ -20,7 +20,7 @@ Style rules (enforce strictly):
 - Alex only speaks 1–2 short sentences total across the whole script (single alex line with 1–2 sentences is OK).
 - Total spoken length about 30–45 seconds when read aloud.
 - The listener should think "I've done that."
-- HARD LIMITS: at most 12 entries in "lines". Each "text" must be 240 characters or fewer.
+- HARD LIMITS: at most 10 entries in "lines". Each "text" must be 200 characters or fewer.
 
 Structure the lines array to tell the story in order: opening narrator beat, failure exchange, alex intervention, corrected exchange, closing narrator line as specified per scenario.
 `.trim();

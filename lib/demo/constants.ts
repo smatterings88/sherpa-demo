@@ -22,11 +22,15 @@ export const SCENARIOS: readonly DemoScenario[] = [
 export const MAX_DEAL_SIZE = 1_000_000;
 export const MAX_COMMISSION = 100_000;
 
-/** Premade ElevenLabs voices; override via env for production. */
+/**
+ * Premade ElevenLabs voices (must match Voice Library IDs exactly).
+ * Override with ELEVENLABS_VOICE_* env vars if your account differs.
+ */
 export const DEFAULT_ELEVENLABS_VOICES = {
   prospect: "21m00Tcm4TlvDq8ikWAM",
   rep: "pNInz6obpgDQGcFmaJgB",
-  alex: "ErXwobaYiN019PkySv",
+  /** Antoni — full ID (truncated `...PkySv` returns voice_not_found). */
+  alex: "ErXwobaYiN019PkySvjV",
 } as const;
 
 /** Default model; override with ELEVENLABS_MODEL_ID (e.g. eleven_turbo_v2_5). */
